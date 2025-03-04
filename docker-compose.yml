@@ -1,0 +1,24 @@
+version: "3.3"
+
+services:
+  project_bot:
+    restart: always
+    build: ./project_bot
+    image: projectbot 
+    volumes:
+      - ./project_bot:/app
+    env_file: ".env"
+  paster_bot:
+    restart: always
+    build: ./paster_bot
+    image: pasterbot
+    volumes:
+      - ./paster_bot:/app
+    env_file: ".env"
+  mongodb:
+    image: mongo:latest
+    env_file: ".env"
+    ports:
+      - "27017:27017"
+    command: mongod
+

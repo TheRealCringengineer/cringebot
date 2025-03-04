@@ -1,0 +1,12 @@
+files/
+images/
+mydata.db
+.env
+cringebot.exe
+__pycache__/
+bot_venv/
+project_bot/__pycache__/
+project_bot/.env
+project_bot/projects/
+paster_bot/__pycache__/
+paster_bot/.env
