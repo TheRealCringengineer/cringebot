@@ -8,6 +8,8 @@ services:
     volumes:
       - ./project_bot:/app
     env_file: ".env"
+    depends_on:
+      - mongodb
   paster_bot:
     restart: always
     build: ./paster_bot
@@ -15,6 +17,8 @@ services:
     volumes:
       - ./paster_bot:/app
     env_file: ".env"
+    depends_on:
+      - mongodb
   mongodb:
     image: mongo:latest
     env_file: ".env"

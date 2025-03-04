@@ -2,13 +2,16 @@ from typing_extensions import is_protocol
 from pymongo import MongoClient
 import logging
 
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
 class Database():
 
     def __init__(self) -> None:
-        self.client = MongoClient(f"mongodb://{os.getenv("MONGO_INITDB_ROOT_USERNAME")}:{os.getenv("MONGO_INITDB_ROOT_PASSWORD")}@mongodb:27017/")
+        username = os.getenv("MONGO_INITDB_ROOT_USERNAME")
+        password = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
+        self.client = MongoClient(f"mongodb://{username}:{password}@mongodb:27017/")
         self.db = self.client["cringebot_db"]
         self.users = self.db["users"]
         self.leaderboard = self.db["leaderboard"]

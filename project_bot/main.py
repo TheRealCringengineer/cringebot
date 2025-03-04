@@ -182,7 +182,8 @@ async def get_project(message: Message):
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 async def main() -> None:
-
+    await bot.delete_webhook(drop_pending_updates=True)
+    
     # Initialize Bot instance with default bot properties which will be passed to all API calls
 
     # And the run events dispatching

@@ -66,6 +66,7 @@ class RepeatedTimer(object):
 
 bot = Bot(token=TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 async def main() -> None:
+    await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
 WAIT_TIME = 30 # Seconds
