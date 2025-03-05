@@ -42,7 +42,7 @@ class Database():
         self.clear_all_winners()
 
         record = {
-            "id" : first[0]["id"]
+            "id" : first["id"]
         }
 
         user = self.leaderboard.find_one(record)
@@ -53,7 +53,7 @@ class Database():
         old_count = user["count"]
 
         update_record = {
-            "$set" : {"count" : old_count+1,"username" : first[0]["username"] , "is_last_winner" : True}
+            "$set" : {"count" : old_count+1,"username" : first["username"] , "is_last_winner" : True}
         }
         self.leaderboard.update_one(record, update_record)
 
