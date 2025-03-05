@@ -31,7 +31,7 @@ class Database():
         self.leaderboard.update_many({}, {"$set" : {"is_last_winner" : False, "score" : 1000}})
 
     def get_first_place(self):
-        return self.leaderboard.find().sort("score", pymongo.ASCENDING).limit(1)
+        return self.leaderboard.find().sort("score", pymongo.ASCENDING)[0]
 
     def update_winner(self):
 
