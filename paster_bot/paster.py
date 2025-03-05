@@ -95,7 +95,8 @@ def reset_leaderboard():
     print("New day - new leaderboard")
     last_checked_day = time.localtime()[:3]
 
-    last_winner = db.update_winner()
+    db.update_winner()
+    last_winner = db.get_last_winner()
     
     if last_winner is None:
         last_winner = ""
