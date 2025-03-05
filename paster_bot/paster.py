@@ -369,10 +369,6 @@ async def inline_echo(inline_query: InlineQuery):
 
 if __name__ == "__main__":
     if db.is_not_empty():
-        last_winner = db.get_last_winner()
-        if last_winner is None:
-            last_winner = "Пусто"
-
         reset_leaderboard()
     else:
         last_checked_day = time.localtime()[:3]
