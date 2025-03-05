@@ -1,3 +1,4 @@
+import pymongo
 from typing_extensions import is_protocol
 from pymongo import MongoClient
 import logging
@@ -13,127 +14,8 @@ class Database():
         password = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
         self.client = MongoClient(f"mongodb://{username}:{password}@mongodb:27017/")
         self.db = self.client["cringebot_db"]
-        self.users = self.db["users"]
         self.leaderboard = self.db["leaderboard"]
-        self.projects = self.db["projects"]
         logging.info("Database is created")
-
-    def get_language(self, id) -> str:
-        record = {
-            "id" : id
-        }
-        res = self.users.find_one(record)
-
-        if res is None:
-            return ""
-
-        return res["language"]
-
-    def is_user_exist(self, id) -> bool:
-        record = {
-            "id" : id
-        }
-        res = self.users.find_one(record)
-
-        return res is not None
-
-    def get_unique_count(self) -> int:
-        return self.users.count_documents({})
-
-    def update_language(self, id, lang):
-        if self.is_user_exist(id):
-            record = {
-                "id" : id
-            }
-            update_record = {
-                "$set" : {"language" : lang}
-            }
-            self.users.update_one(record, update_record)
-
-    def add_new_user(self, id, username, lang) -> bool:
-
-        if self.is_user_exist(id):
-            logging.error(f"User {username} exist")
-            return False
-
-        record = {
-            "id" : id,
-            "username" : username,
-            "language" : lang
-        }
-        self.users.insert_one(record)
-        return True
-
-    def is_project_exist(self, name) -> bool:
-        record = {
-            "name" :name 
-        }
-        res = self.projects.find_one(record)
-
-        return res is not None
-
-    def is_cached(self, name) -> bool:
-        record = {
-            "name" :name 
-        }
-        res = self.projects.find_one(record)
-        if not res:
-            return False
-        if not res["cache"] or len(res["cache"]) == 0:
-            return False
-
-        return True
-
-
-    def update_project(self, project_name, project_text, project_file):
-        if self.is_project_exist(project_name):
-            record = {
-                "name" : project_name
-            }
-            update_record = {
-                "$set" : {"text" : project_text, "file" : project_file}
-            }
-            self.projects.update_one(record, update_record)
-            self.clear_cache(project_name)
-
-    def create_project(self, project_name, project_text, project_file) -> bool:
-        
-        if self.is_project_exist(project_name):
-            logging.error(f"Project {project_name} exist. Updating...")
-            return False
-
-        record = {
-            "name" : project_name,
-            "text" : project_text,
-            "file" : project_file,
-            "cache" : None
-        }
-
-        self.projects.insert_one(record)
-        return True
-
-    def get_projects(self):
-        return self.projects.find()
-
-    def clear_cache(self, project_name):
-        if self.is_project_exist(project_name):
-            record = {
-                "name" : project_name
-            }
-            update_record = {
-                "$set" : {"cache" : ""}
-            }
-            self.projects.update_one(record, update_record)
-
-    def set_cache_if_not_exist(self, project_name, project_cache):
-        if not self.is_cached(project_name):
-            record = {
-                "name" : project_name
-            }
-            update_record = {
-                "$set" : {"cache" : project_cache}
-            }
-            self.projects.update_one(record, update_record)
 
     # Leaderboard
 
@@ -145,9 +27,22 @@ class Database():
 
         return res is not None
 
-    def update_winner(self, username, score):
+    def clear_all_winners(self):
+        self.leaderboard.update_many({}, {"$set" : {"is_last_winner" : False, "score" : 1000}})
+
+    def get_first_place(self):
+        return self.leaderboard.find().sort("score", pymongo.ASCENDING).limit(1)
+
+    def update_winner(self):
+
+        first = self.get_first_place()
+        if first is None:
+            return
+
+        self.clear_all_winners()
+
         record = {
-            "username" : username
+            "id" : first[0]["id"]
         }
 
         user = self.leaderboard.find_one(record)
@@ -156,25 +51,63 @@ class Database():
             return
 
         old_count = user["count"]
-        best_score = score if float(score) < float(user["score"]) else float(user["score"])
 
         update_record = {
-            "$set" : {"count" : old_count+1, "score" : best_score}
+            "$set" : {"count" : old_count+1,"username" : first[0]["username"] , "is_last_winner" : True}
         }
         self.leaderboard.update_one(record, update_record)
 
-    def add_leaderboard_user(self, username):
+    def update_score(self, id, username, score):
+        record = {
+            "id" : id 
+        }
+
+        user = self.leaderboard.find_one(record)
+
+        if not user:
+            return
+
+        best_score = score if float(score) < float(user["score"]) else float(user["score"])
+
+        update_record = {
+            "$set" : {"score" : best_score, "username" : username}
+        }
+        self.leaderboard.update_one(record, update_record)
+
+    def get_last_winner(self):
+
+        winner = self.leaderboard.find_one({"is_last_winner" : True})
+        if not winner:
+            return None
+
+        return winner["username"]
+
+    def add_leaderboard_user(self, id, username):
         if self.winner_exist(username):
             return
 
         record = {
+            "id" : id,
             "username" : username,
             "count" : 0,
-            "score" : 0
+            "score" : 1000,
+            "is_last_winner" : False
         }
         self.leaderboard.insert_one(record)
 
-    def add_winner(self, username, score):
-        if self.winner_exist(username):
-            self.update_winner(username, score) 
-            return
+    def get_my_place(self, id):
+        leaderboard = self.leaderboard.find().sort("score", pymongo.ASCENDING)
+        if leaderboard is None:
+            return None
+
+        index = 1
+        for user in leaderboard:
+            if user["id"] == id:
+                return index, user["score"], user["count"]
+            index += 1
+        return None
+
+
+    def get_leaderboard(self):
+        return self.leaderboard.find().sort("score", pymongo.ASCENDING)
+

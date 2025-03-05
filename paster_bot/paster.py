@@ -71,7 +71,7 @@ async def main() -> None:
 
 WAIT_TIME = 30 # Seconds
 last_winner = ""
-leaderboard = {}
+time_table = {}
 next_finish_time = ""
 
 def get_current_time():
@@ -83,7 +83,6 @@ def get_current_time():
 last_checked_day = 0
 
 def reset_leaderboard():
-    global leaderboard
     global last_winner
     global next_finish_time
 
@@ -96,45 +95,32 @@ def reset_leaderboard():
     print("New day - new leaderboard")
     last_checked_day = time.localtime()[:3]
 
-    # for i in range(len(leaderboard)):
-        # print("{0}) {1} : {2}%\n".format(str(i+1), list(leaderboard.values())[i][1], list(leaderboard.values())[i][0]))
-    if len(leaderboard.values()) > 0:
-        last_winner = list(leaderboard.values())[0][1]
-        if len(last_winner) > 0:
-            db.add_winner(last_winner, float(list(leaderboard.values())[0][1])) 
-    else:
+    db.update_winner()
+    
+    if last_winner is None:
         last_winner = ""
-    leaderboard = {}
 
 
 def set_result(user : User, score):
-
-    global leaderboard
-
-    db.add_leaderboard_user(html.escape(user.full_name))
-
-    if user.id in leaderboard:
-        if float(leaderboard[user.id][0]) > float(score):
-            leaderboard[user.id] = score, html.escape(user.full_name), time.time()
-        else:
-            leaderboard[user.id] = leaderboard[user.id][0], leaderboard[user.id][1], time.time()
-    else:
-        leaderboard[user.id] = score, html.escape(user.full_name), time.time()
-
-    # sort by score
-    leaderboard = dict(sorted(leaderboard.items(), key=lambda item: float(item[1][0])))
-
+    db.add_leaderboard_user(user.id, html.escape(user.full_name))
+    db.update_score(user.id, html.escape(user.full_name), score)
+    time_table[user.id] = time.time()
 
 def get_full_leaderboard():
-    global leaderboard
     global last_winner
     global next_finish_time
 
+    leaderboard = db.get_leaderboard()
     res = ""
-    for i in range(len(leaderboard)):
-        res += ("<b>{0}. {1}</b>: {2}%\n".format(str(i+1), list(leaderboard.values())[i][1], list(leaderboard.values())[i][0]))
 
-    # print(len(leaderboard) if len(leaderboard) < 5 else 5)
+    index = 0
+    for user in leaderboard:
+        if index >= 5:
+            break
+
+        res += "{0}. {1}: {2}%\n".format(str(index+1), html.unescape(user["username"]), user["score"])
+
+        index += 1
 
     w = str(last_winner)
     if len(w) == 0:
@@ -144,13 +130,20 @@ def get_full_leaderboard():
     return res
 
 def get_leaderboard():
-    global leaderboard
     global last_winner
     global next_finish_time
 
+    leaderboard = db.get_leaderboard()
     res = ""
-    for i in range(len(leaderboard) if len(leaderboard) < 5 else 5):
-        res += ("{0}. {1}: {2}%\n".format(str(i+1), html.unescape(list(leaderboard.values())[i][1]), list(leaderboard.values())[i][0]))
+
+    index = 0
+    for user in leaderboard:
+        if index >= 5:
+            break
+
+        res += "{0}. {1}: {2}%\n".format(str(index+1), html.unescape(user["username"]), user["score"])
+
+        index += 1
 
     # print(len(leaderboard) if len(leaderboard) < 5 else 5)
 
@@ -217,11 +210,13 @@ async def process_callback_button1(callback_query: CallbackQuery):
 
 @dp.chosen_inline_result()
 async def result(chosen: ChosenInlineResult):
-    if chosen.from_user.id in leaderboard:
-        last_time = leaderboard[chosen.from_user.id][2]
+    if chosen.from_user.id in time_table:
+        last_time = time_table[chosen.from_user.id]
         seconds_pass = int(time.time() - last_time )
         if seconds_pass < WAIT_TIME:
             return
+    else:
+        time_table[chosen.from_user.id] = time.time()
 
     text = ''
     # value = rng.randint(0,100)
@@ -296,8 +291,9 @@ async def result(chosen: ChosenInlineResult):
 
     set_result(chosen.from_user, v)
 
-    pos = list(leaderboard.keys()).index(chosen.from_user.id) + 1
-    text += f"\n\nМой лучший результат : {str(leaderboard[chosen.from_user.id][0] )}%"
+    pos, score, wins = db.get_my_place(chosen.from_user.id)
+
+    text += f"\n\nМой лучший результат : {str(score)}%\nМои победы : {wins}"
     if pos == 1:
         text += "\nЯ на первом! СОСАТЬ + ЛЕЖАТЬ 🎉"
     else:
@@ -312,8 +308,10 @@ async def result(chosen: ChosenInlineResult):
         resize_keyboard=True,
     )
 
-
-    await bot.edit_message_text(text=text, inline_message_id=chosen.inline_message_id, reply_markup=reply)
+    try:
+        await bot.edit_message_text(text=text, inline_message_id=chosen.inline_message_id, reply_markup=reply)
+    except Exception as e:
+        logging.error(f"An error occured : {e}")
 
 
 # inline_query_id = 1
@@ -330,15 +328,15 @@ async def inline_echo(inline_query: InlineQuery):
 
     leaderboard_start = InlineQueryResultsButton(text="Таблица лидеров", start_parameter="leaderboard")
 
-    if inline_query.from_user.id in leaderboard:
-        last_time = leaderboard[inline_query.from_user.id][2]
+    if inline_query.from_user.id in time_table:
+        last_time = time_table[inline_query.from_user.id]
         seconds_pass = int(time.time() - last_time )
-        # print("С последнего запроса " + str(seconds_pass))
+        print("С последнего запроса " + str(seconds_pass))
         if seconds_pass < WAIT_TIME:
             wait_msg = f"Подождите {str(WAIT_TIME-seconds_pass)} секунд"
 
-            text += f"\nМой лучший результат : {str(leaderboard[inline_query.from_user.id][0] )}%"
-            pos = list(leaderboard.keys()).index(inline_query.from_user.id) + 1
+            pos, score, wins = db.get_my_place(inline_query.from_user.id)
+            text += f"\nМой лучший результат : {str(score)}%\nМои победы : {wins}"
             if pos == 1:
                 text += "\nЯ на первом! СОСАТЬ + ЛЕЖАТЬ 🎉"
             else:
@@ -369,7 +367,10 @@ async def inline_echo(inline_query: InlineQuery):
 
 
 if __name__ == "__main__":
-    leaderboard[0] = 0, "" # Last winner before restart
+    last_winner = db.get_last_winner()
+    if last_winner is None:
+        last_winner = "Пусто"
+
     reset_leaderboard()
     rt = RepeatedTimer(60, reset_leaderboard)
 
