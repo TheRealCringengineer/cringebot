@@ -74,6 +74,10 @@ class Database():
         }
         self.leaderboard.update_one(record, update_record)
 
+    def is_not_empty(self):
+        users = self.leaderboard.count_documents({})
+        return users > 0
+
     def get_last_winner(self):
 
         winner = self.leaderboard.find_one({"is_last_winner" : True})

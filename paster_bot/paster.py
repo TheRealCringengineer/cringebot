@@ -367,11 +367,15 @@ async def inline_echo(inline_query: InlineQuery):
 
 
 if __name__ == "__main__":
-    last_winner = db.get_last_winner()
-    if last_winner is None:
-        last_winner = "Пусто"
+    if db.is_not_empty():
+        last_winner = db.get_last_winner()
+        if last_winner is None:
+            last_winner = "Пусто"
 
-    reset_leaderboard()
+        reset_leaderboard()
+    else:
+        last_checked_day = time.localtime()[:3]
+
     rt = RepeatedTimer(60, reset_leaderboard)
 
     try:
