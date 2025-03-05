@@ -289,7 +289,7 @@ async def result(chosen: ChosenInlineResult):
     emoji = ["💻","🖥","💾","💿","📺", "📟", "📀", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫️", "⚪️", "🟤"]
     text += " " + emoji[rng.integers(0,len(emoji))]
 
-    set_result(chosen.from_user, v)
+    set_result(chosen.from_user, float(v))
 
     pos, score, wins = db.get_my_place(chosen.from_user.id)
 

@@ -67,7 +67,7 @@ class Database():
         if not user:
             return
 
-        best_score = score if float(score) < float(user["score"]) else float(user["score"])
+        best_score = float(score) if float(score) < float(user["score"]) else float(user["score"])
 
         update_record = {
             "$set" : {"score" : best_score, "username" : username}
