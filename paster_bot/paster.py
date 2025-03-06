@@ -70,7 +70,6 @@ async def main() -> None:
     await dp.start_polling(bot)
 
 WAIT_TIME = 30 # Seconds
-last_winner = ""
 time_table = {}
 next_finish_time = ""
 
@@ -83,7 +82,6 @@ def get_current_time():
 last_checked_day = 0
 
 def reset_leaderboard():
-    global last_winner
     global next_finish_time
 
     global last_checked_day
@@ -96,10 +94,6 @@ def reset_leaderboard():
     last_checked_day = time.localtime()[:3]
 
     db.update_winner()
-    last_winner = db.get_last_winner()
-    
-    if last_winner is None:
-        last_winner = ""
 
 
 def set_result(user : User, score):
@@ -108,7 +102,6 @@ def set_result(user : User, score):
     time_table[user.id] = time.time()
 
 def get_full_leaderboard():
-    global last_winner
     global next_finish_time
 
     leaderboard = db.get_leaderboard()
@@ -116,22 +109,18 @@ def get_full_leaderboard():
 
     index = 0
     for user in leaderboard:
-        if index >= 5:
-            break
-
         res += "{0}. {1}: {2}%\n".format(str(index+1), html.unescape(user["username"]), user["score"])
 
         index += 1
 
-    w = str(last_winner)
-    if len(w) == 0:
+    w = db.get_last_winner()
+    if w is None:
         w = "ПУСТО"
     res += "\nПоследний победитель: " + w + "\n"
     res += "Раунд закончится в 00:00 по МСК"
     return res
 
 def get_leaderboard():
-    global last_winner
     global next_finish_time
 
     leaderboard = db.get_leaderboard()
@@ -294,12 +283,6 @@ async def result(chosen: ChosenInlineResult):
 
     pos, score, wins = db.get_my_place(chosen.from_user.id)
 
-    text += f"\n\nМой лучший результат : {str(score)}%\nМои победы : {wins}"
-    if pos == 1:
-        text += "\nЯ на первом! СОСАТЬ + ЛЕЖАТЬ 🎉"
-    else:
-        text += f"\nМоё место: {str(pos)}"
-
     reply=InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -308,6 +291,21 @@ async def result(chosen: ChosenInlineResult):
         ],
         resize_keyboard=True,
     )
+
+    if pos is None or score is None or wins is None:
+        logging.error(f"Error during processing {chosen.from_user}\nposition : {pos}, score : {score}, wins : {wins}")
+        try:
+            await bot.edit_message_text(text=f"Я что-то сломал в боте :(", inline_message_id=chosen.inline_message_id, reply_markup=reply)
+        except Exception as e:
+            logging.error(f"An error occured : {e}")
+        return
+        
+
+    text += f"\n\nМой лучший результат : {str(score)}%\nМои победы : {wins}"
+    if pos == 1:
+        text += "\nЯ на первом! СОСАТЬ + ЛЕЖАТЬ 🎉"
+    else:
+        text += f"\nМоё место: {str(pos)}"
 
     try:
         await bot.edit_message_text(text=text, inline_message_id=chosen.inline_message_id, reply_markup=reply)
@@ -337,6 +335,18 @@ async def inline_echo(inline_query: InlineQuery):
             wait_msg = f"Подождите {str(WAIT_TIME-seconds_pass)} секунд"
 
             pos, score, wins = db.get_my_place(inline_query.from_user.id)
+
+            if pos is None or score is None or wins is None:
+                logging.error(f"Error during processing {inline_query.from_user}\nposition : {pos}, score : {score}, wins : {wins}")
+                try:
+                    wait = InlineQueryResultArticle(id=inline_query.id + "1",
+                                       title=wait_msg,
+                                                    input_message_content=InputTextMessageContent(parse_mode="HTML", message_text="Я что-то сломал в боте :("))
+                    await inline_query.answer(results=[wait], cache_time=0, button=leaderboard_start, is_personal=True)
+                except Exception as e:
+                    logging.error(f"An error occured : {e}")
+                return
+
             text += f"\nМой лучший результат : {str(score)}%\nМои победы : {wins}"
             if pos == 1:
                 text += "\nЯ на первом! СОСАТЬ + ЛЕЖАТЬ 🎉"

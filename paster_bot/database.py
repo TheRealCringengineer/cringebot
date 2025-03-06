@@ -102,14 +102,14 @@ class Database():
     def get_my_place(self, id):
         leaderboard = self.leaderboard.find().sort("score", pymongo.ASCENDING)
         if leaderboard is None:
-            return None
+            return None, None, None
 
         index = 1
         for user in leaderboard:
             if user["id"] == id:
                 return index, user["score"], user["count"]
             index += 1
-        return None
+        return None, None, None
 
 
     def get_leaderboard(self):
