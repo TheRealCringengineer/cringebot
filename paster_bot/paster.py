@@ -110,7 +110,7 @@ def get_full_leaderboard():
 
     index = 0
     for user in leaderboard:
-        res += "{0}. {1}: {2}%\n".format(str(index+1), html.unescape(user["username"]), user["score"])
+        res += "{0}. {1}: {2}%\n".format(str(index+1), user["username"], user["score"])
 
         index += 1
 
