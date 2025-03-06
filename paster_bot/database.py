@@ -19,9 +19,9 @@ class Database():
 
     # Leaderboard
 
-    def winner_exist(self, username):
+    def winner_exist(self, id):
         record = {
-            "username" : username
+            "id" : id 
         }
         res = self.leaderboard.find_one(record)
 
@@ -90,7 +90,7 @@ class Database():
         return winner["username"]
 
     def add_leaderboard_user(self, id, username):
-        if self.winner_exist(username):
+        if self.winner_exist(id):
             return
 
         record = {
