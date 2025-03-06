@@ -33,6 +33,7 @@ db = Database()
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN_PASTER")
+ADMIN = os.getenv("ADMIN")
 rng = np.random.default_rng()
 router = Router()
 dp = Dispatcher()
@@ -154,6 +155,15 @@ def generate_new_value():
             worst_value = number
 
     return "%.2f" % (worst_value * 100)
+
+@dp.message(Command("wipe"))
+async def wipe(message: Message):
+    if message.from_user.username != ADMIN:
+        await message.answer("❌❌❌❌❌❌❌❌")
+        return
+
+    db.clear_all()
+    await message.answer("Wiped")
 
 @dp.message(CommandStart())
 async def start(message: Message):

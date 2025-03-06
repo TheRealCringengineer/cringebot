@@ -27,6 +27,9 @@ class Database():
 
         return res is not None
 
+    def clear_all(self):
+        self.leaderboard.update_many({}, {"$set" : {"is_last_winner" : False, "score" : 1000, "count" : 0}},)
+
     def clear_all_winners(self):
         self.leaderboard.update_many({}, {"$set" : {"is_last_winner" : False, "score" : 1000}})
 
