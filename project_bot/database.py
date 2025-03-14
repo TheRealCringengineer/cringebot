@@ -85,18 +85,18 @@ class Database():
         return True
 
 
-    def update_project(self, project_name, project_text, project_file):
+    def update_project(self, project_name, project_text_ru, project_text_eng, project_file):
         if self.is_project_exist(project_name):
             record = {
                 "name" : project_name
             }
             update_record = {
-                "$set" : {"text" : project_text, "file" : project_file}
+                "$set" : {"text_ru" : project_text_ru, "text_eng" : project_text_eng,"file" : project_file}
             }
             self.projects.update_one(record, update_record)
             self.clear_cache(project_name)
 
-    def create_project(self, project_name, project_text, project_file) -> bool:
+    def create_project(self, project_name, project_text_ru, project_text_eng, project_file) -> bool:
         
         if self.is_project_exist(project_name):
             logging.error(f"Project {project_name} exist. Updating...")
@@ -104,7 +104,8 @@ class Database():
 
         record = {
             "name" : project_name,
-            "text" : project_text,
+            "text_ru" : project_text_ru,
+            "text_eng" : project_text_eng,
             "file" : project_file,
             "cache" : None
         }
@@ -134,51 +135,3 @@ class Database():
                 "$set" : {"cache" : project_cache}
             }
             self.projects.update_one(record, update_record)
-
-    # Leaderboard
-
-    def winner_exist(self, username):
-        record = {
-            "username" : username
-        }
-        res = self.leaderboard.find_one(record)
-
-        return res is not None
-
-    def update_winner(self, username):
-        record = {
-            "username" : username
-        }
-
-        user = self.leaderboard.find_one(record)
-
-        if not user:
-            return
-
-        old_count = user["count"]
-
-        update_record = {
-            "$set" : {"count" : old_count+1}
-        }
-        self.leaderboard.update_one(record, update_record)
-
-    def add_leaderboard_user(self, username):
-        if self.winner_exist(username):
-            return
-
-        record = {
-            "username" : username,
-            "count" : 0
-        }
-        self.leaderboard.insert_one(record)
-
-    def add_winner(self, username):
-        if self.winner_exist(username):
-            self.update_winner(username) 
-            return
-
-        record = {
-            "username" : username,
-            "count" : 1
-        }
-        self.leaderboard.insert_one(record)
