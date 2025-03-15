@@ -263,6 +263,9 @@ async def process_callback_button1(callback_query: CallbackQuery):
 
 @dp.chosen_inline_result()
 async def result(chosen: ChosenInlineResult):
+    if db.is_banned(chosen.from_user.id):
+        return
+
     if chosen.from_user.id in time_table:
         last_time = time_table[chosen.from_user.id]
         seconds_pass = int(time.time() - last_time )
