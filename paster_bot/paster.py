@@ -2,6 +2,7 @@ import asyncio
 import logging
 import sys
 import os
+from annotated_types import IsDigit
 from dotenv import load_dotenv
 
 from aiogram import Bot, F, Dispatcher, html, Router 
@@ -110,6 +111,9 @@ def get_full_leaderboard():
 
     index = 0
     for user in leaderboard:
+        if index >= 50:
+            break
+
         res += "{0}. {1}: {2}%\n".format(str(index+1), user["username"], user["score"])
 
         index += 1
@@ -144,7 +148,7 @@ def get_leaderboard():
 
 def generate_new_value():
     worst_value = 0
-    for i in range(2):
+    for _ in range(2):
         number = abs(rng.normal(1,0.5))
         while number > 1:
             number = number - 0.5
@@ -158,15 +162,64 @@ def generate_new_value():
 
 @dp.message(Command("wipe"))
 async def wipe(message: Message):
-    if message.from_user.username != ADMIN:
+    if message.from_user is not None and message.from_user.username != ADMIN:
         await message.answer("❌❌❌❌❌❌❌❌")
         return
 
     db.clear_all()
     await message.answer("Wiped")
 
+@dp.message(Command("ban"))
+async def ban(message: Message):
+    if message.from_user is not None and message.from_user.username != ADMIN:
+        await message.answer("❌❌❌❌❌❌❌❌")
+        return
+
+    if message.text is None:
+        await message.answer("No args")
+        return
+
+    args = message.text.split(" ")
+
+    if len(args) < 2:
+        await message.answer("Send id")
+        return
+
+    if args[1].isdigit():
+        db.ban_user(int(args[1]))
+        await message.answer("Banned")
+    else:
+        await message.answer("No correct id")
+
+@dp.message(Command("unban"))
+async def unban(message: Message):
+    if message.from_user is not None and message.from_user.username != ADMIN:
+        await message.answer("❌❌❌❌❌❌❌❌")
+        return
+
+    if message.text is None:
+        await message.answer("No args")
+        return
+
+    args = message.text.split(" ")
+
+    if len(args) < 2:
+        await message.answer("Send id")
+        return
+
+    if args[1].isdigit():
+        db.unban_user(int(args[1]))
+        await message.answer("Unbanned")
+    else:
+        await message.answer("No correct id")
+
 @dp.message(CommandStart())
 async def start(message: Message):
+
+    if message.text is None:
+        await message.answer("No args")
+        return
+
     args = message.text.split(" ")
 
     rules =f"""
@@ -326,12 +379,18 @@ async def result(chosen: ChosenInlineResult):
 # inline_query_id = 1
 @dp.inline_query()
 async def inline_echo(inline_query: InlineQuery):
-
     text = ""
     if not inline_query.from_user:
         article = InlineQueryResultArticle(id=inline_query.id,
                                        title="Насколько я пастер?",
                                         input_message_content=InputTextMessageContent(message_text="Произошла ошибка"))
+        await inline_query.answer(results=[article], cache_time=0, is_personal=True)
+        return
+
+    if db.is_banned(inline_query.from_user.id):
+        article = InlineQueryResultArticle(id=inline_query.id,
+                                       title="Забанен",
+                                        input_message_content=InputTextMessageContent(message_text="Я ЗАБАНЕН ПО ПРИЧИНЕ \"ПИДОР\""))
         await inline_query.answer(results=[article], cache_time=0, is_personal=True)
         return
 

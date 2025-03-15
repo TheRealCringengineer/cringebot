@@ -14,6 +14,7 @@ class Database():
         password = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
         self.client = MongoClient(f"mongodb://{username}:{password}@mongodb:27017/")
         self.db = self.client["cringebot_db"]
+        self.banned = self.db["banned"]
         self.leaderboard = self.db["leaderboard"]
         logging.info("Database is created")
 
@@ -113,6 +114,35 @@ class Database():
                 return index, user["score"], user["count"]
             index += 1
         return None, None, None
+
+    def is_banned(self, id):
+        record = {
+            "id" : id 
+        }
+        res = self.banned.find_one(record)
+
+        return res is not None        
+    
+    def unban_user(self, id):
+        if not self.is_banned(id):
+            return
+
+        record = {
+            "id" : id 
+        }
+
+        self.banned.delete_one(record)
+
+    def ban_user(self, id):
+        if not self.winner_exist(id):
+            return
+
+        record = {
+            "id" : id 
+        }
+
+        self.leaderboard.delete_one(record)
+        self.banned.insert_one(record)
 
 
     def get_leaderboard(self):
