@@ -71,7 +71,7 @@ async def main() -> None:
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
-WAIT_TIME = 30 # Seconds
+WAIT_TIME = 60 * 30 # Seconds
 time_table = {}
 next_finish_time = ""
 
