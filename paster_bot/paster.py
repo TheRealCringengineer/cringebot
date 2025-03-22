@@ -71,7 +71,7 @@ async def main() -> None:
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 
-WAIT_TIME = 60 * 30 # Seconds
+WAIT_TIME = 30 # Seconds
 time_table = {}
 next_finish_time = ""
 
@@ -450,10 +450,7 @@ async def inline_echo(inline_query: InlineQuery):
 
 
 if __name__ == "__main__":
-    if db.is_not_empty():
-        reset_leaderboard()
-    else:
-        last_checked_day = time.localtime()[:3]
+    last_checked_day = time.localtime()[:3]
 
     rt = RepeatedTimer(60, reset_leaderboard)
 
