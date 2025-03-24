@@ -379,7 +379,6 @@ async def result(chosen: ChosenInlineResult):
         logging.error(f"An error occured : {e}")
 
 
-# inline_query_id = 1
 @dp.inline_query()
 async def inline_echo(inline_query: InlineQuery):
     text = ""
@@ -402,7 +401,6 @@ async def inline_echo(inline_query: InlineQuery):
     if inline_query.from_user.id in time_table:
         last_time = time_table[inline_query.from_user.id]
         seconds_pass = int(time.time() - last_time )
-        print("С последнего запроса " + str(seconds_pass))
         if seconds_pass < WAIT_TIME:
             wait_msg = f"Подождите {str(WAIT_TIME-seconds_pass)} секунд"
 
