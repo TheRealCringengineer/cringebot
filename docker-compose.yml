@@ -1,5 +1,3 @@
-version: "3.3"
-
 services:
   project_bot:
     restart: always
@@ -10,6 +8,11 @@ services:
     env_file: ".env"
     depends_on:
       - mongodb
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
   paster_bot:
     restart: always
     build: ./paster_bot
@@ -19,6 +22,11 @@ services:
     env_file: ".env"
     depends_on:
       - mongodb
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
   mongodb:
     image: mongo:latest
     env_file: ".env"
