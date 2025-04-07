@@ -8,7 +8,7 @@ from aiogram import Bot, Dispatcher, html, Router
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.filters import CommandStart, Command
-from aiogram.types import KeyboardButton, Message, ReplyKeyboardMarkup, reply_keyboard_markup, InlineQuery, InputTextMessageContent, InlineQueryResultArticle, InlineQueryResultDocument, ContentType, FSInputFile
+from aiogram.types import InlineKeyboardMarkup, KeyboardButton, Message, ReplyKeyboardMarkup, InlineKeyboardButton, inline_keyboard_markup, reply_keyboard_markup, InlineQuery, InputTextMessageContent, InlineQueryResultArticle, InlineQueryResultDocument, ContentType, FSInputFile
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
@@ -16,8 +16,11 @@ from aiogram.types import (
     Message,
     ReplyKeyboardMarkup,
     ReplyKeyboardRemove,
+    CallbackQuery
 )
 from pathlib import Path
+
+from magic_filter.operations import call
 from database import *
 import html
 
@@ -41,11 +44,15 @@ MAIN_LINKS_RU = '''Основные ссылки:
 <a href="boosty.to/cringengineer">БУСТИ</a>\n
 <a href="t.me/cringengineer_channel">ТЕЛЕГРАМ</a>\n
 <a href="www.youtube.com/@PantheonDev">YOUTUBE</a>
+
+<b>Проекты можно скачать из списка внизу</b>
 '''
 MAIN_LINKS_ENG = '''Links:
 <a href="boosty.to/cringengineer">BOOSTY</a>\n
 <a href="t.me/cringengineer_channel">TELEGRAM</a>\n
 <a href="www.youtube.com/@PantheonDev">YOUTUBE</a>
+
+<b>You can download projects from the list below</b>
 '''
 
 UNKNOWN_COMMAND_RU = "Неизвестная команда"
@@ -57,12 +64,12 @@ LANGUAGE_SET_ENG = "Language set as English"
 @dp.message(CommandStart())
 async def command_start(message: Message):
     languages = [[
-                    KeyboardButton(text=RUSSIAN_LANG),
-                    KeyboardButton(text=ENGLISH_LANG),
+                    InlineKeyboardButton(text=RUSSIAN_LANG, callback_data=RUSSIAN_LANG),
+                    InlineKeyboardButton(text=ENGLISH_LANG, callback_data=ENGLISH_LANG),
                 ]]
 
-    reply_markup=ReplyKeyboardMarkup(
-            keyboard = languages,
+    reply_markup=InlineKeyboardMarkup(
+            inline_keyboard = languages,
             resize_keyboard=True,
         )
 
@@ -71,12 +78,12 @@ async def command_start(message: Message):
 @dp.message(Command("language"))
 async def command_lang(message: Message):
     languages = [[
-                    KeyboardButton(text=RUSSIAN_LANG),
-                    KeyboardButton(text=ENGLISH_LANG),
+                    InlineKeyboardButton(text=RUSSIAN_LANG, callback_data=RUSSIAN_LANG),
+                    InlineKeyboardButton(text=ENGLISH_LANG, callback_data=ENGLISH_LANG),
                 ]]
 
-    reply_markup=ReplyKeyboardMarkup(
-            keyboard = languages,
+    reply_markup=InlineKeyboardMarkup(
+            inline_keyboard = languages,
             resize_keyboard=True,
         )
 
@@ -97,10 +104,10 @@ async def get_projects(message: Message):
     result = []
 
     for project in projects:
-        result.append([KeyboardButton(text=project["name"])])
+        result.append([InlineKeyboardButton(text=project["name"], callback_data=project["name"])])
 
-    reply_markup=ReplyKeyboardMarkup(
-            keyboard = result,
+    reply_markup=InlineKeyboardMarkup(
+            inline_keyboard = result,
             resize_keyboard=True,
         )
 
@@ -111,42 +118,51 @@ async def get_projects(message: Message):
         await message.answer(MAIN_LINKS_ENG, reply_markup=reply_markup)
 
 
+async def select_russian(callback : CallbackQuery):
+    message = callback.message
+    if not message:
+        await callback.answer("ERROR")
+        return
 
-@dp.message(F.text == RUSSIAN_LANG)
-async def select_russian(message: Message):
     projects = db.get_projects()
 
     result = []
 
     for project in projects:
-        result.append([KeyboardButton(text=project["name"])])
+        result.append([InlineKeyboardButton(text=project["name"], callback_data=project["name"])])
 
-    reply_markup=ReplyKeyboardMarkup(
-            keyboard = result,
+    reply_markup=InlineKeyboardMarkup(
+            inline_keyboard = result,
             resize_keyboard=True,
         )
 
-    if not db.add_new_user(message.from_user.id, message.from_user.full_name, RUSSIAN_LANG):
-        db.update_language(message.from_user.id, RUSSIAN_LANG)
-    await message.answer(LANGUAGE_SET_RU, reply_markup = reply_markup)
+    await callback.answer()
+    if not db.add_new_user(callback.from_user.id, callback.from_user.full_name, RUSSIAN_LANG):
+        db.update_language(callback.from_user.id, RUSSIAN_LANG)
+    await message.answer(f"{LANGUAGE_SET_RU}\n\n{MAIN_LINKS_RU}", reply_markup = reply_markup)
 
-@dp.message(F.text == ENGLISH_LANG)
-async def select_english(message: Message):
+async def select_english(callback : CallbackQuery):
+    message = callback.message
+    if not message:
+        await callback.answer("ERROR")
+        return
+
     projects = db.get_projects()
 
     result = []
 
     for project in projects:
-        result.append([KeyboardButton(text=project["name"])])
+        result.append([InlineKeyboardButton(text=project["name"], callback_data=project["name"])])
 
-    reply_markup=ReplyKeyboardMarkup(
-            keyboard = result,
+    reply_markup=InlineKeyboardMarkup(
+            inline_keyboard = result,
             resize_keyboard=True,
         )
 
-    if not db.add_new_user(message.from_user.id, message.from_user.full_name, ENGLISH_LANG):
-        db.update_language(message.from_user.id, ENGLISH_LANG)
-    await message.answer(LANGUAGE_SET_ENG, reply_markup = reply_markup)
+    await callback.answer()
+    if not db.add_new_user(callback.from_user.id, callback.from_user.full_name, ENGLISH_LANG):
+        db.update_language(callback.from_user.id, ENGLISH_LANG)
+    await message.answer(f"{LANGUAGE_SET_ENG}\n\n{MAIN_LINKS_ENG}", reply_markup = reply_markup)
 
 PROJECT_OPEN_TAG = "<project>"
 PROJECT_CLOSE_TAG = "</project>"
@@ -207,20 +223,32 @@ async def upload_file(message: Message):
             db.update_project(project_name, ru, eng, full_path)
             await message.answer(f"File : {message.document.file_name} was uploaded for project {project_name}")
 
+@dp.callback_query()
+async def process_query(callback: CallbackQuery):
+    message = callback.message
+    if not message:
+        await callback.answer("ERROR")
+        return
 
-@dp.message(F.text)
-async def get_project(message: Message):
+    if callback.data == RUSSIAN_LANG:
+        await select_russian(callback)
+        return
+    if callback.data == ENGLISH_LANG:
+        await select_english(callback)
+        return
+
     projects = db.get_projects()
 
-    lang = db.get_language(message.from_user.id)
+    lang = db.get_language(callback.from_user.id)
 
     for project in projects:
-        if project["name"] == message.text:
+        if project["name"] == callback.data:
 
             text = "text_eng"
             if lang == RUSSIAN_LANG:
                 text = "text_ru"
 
+            await callback.answer() # Disable glowing
             # await message.answer(project["text"])
             if db.is_cached(project["name"]):
                 await message.answer_document(document=project["cache"], caption=project[text])
@@ -229,6 +257,7 @@ async def get_project(message: Message):
                 db.set_cache_if_not_exist(project["name"], str(res.document.file_id))
             return
 
+    await callback.answer() # Disable glowing
     if lang == RUSSIAN_LANG:
         await message.answer(UNKNOWN_COMMAND_RU)
     else:
