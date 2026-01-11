@@ -261,18 +261,17 @@ async def process_callback_button1(callback_query: CallbackQuery):
     # await bot.send_message(callback_query.from_user.id, 'Нажата первая кнопка!')
 
 
-@dp.chosen_inline_result()
-async def result(chosen: ChosenInlineResult):
-    if db.is_banned(chosen.from_user.id):
+def generate_result(user):
+    if db.is_banned(user.id):
         return
 
-    if chosen.from_user.id in time_table:
-        last_time = time_table[chosen.from_user.id]
+    if user.id in time_table:
+        last_time = time_table[user.id]
         seconds_pass = int(time.time() - last_time )
         if seconds_pass < WAIT_TIME:
             return
     else:
-        time_table[chosen.from_user.id] = time.time()
+        time_table[user.id] = time.time()
 
     text = ''
     # value = rng.randint(0,100)
@@ -345,26 +344,13 @@ async def result(chosen: ChosenInlineResult):
     emoji = ["💻","🖥","💾","💿","📺", "📟", "📀", "🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "⚫️", "⚪️", "🟤"]
     text += " " + emoji[rng.integers(0,len(emoji))]
 
-    set_result(chosen.from_user, float(v))
+    set_result(user, float(v))
 
-    pos, score, wins = db.get_my_place(chosen.from_user.id)
-
-    reply=InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Показать ТОП-5", callback_data="top5"),
-            ]
-        ],
-        resize_keyboard=True,
-    )
+    pos, score, wins = db.get_my_place(user.id)
 
     if pos is None or score is None or wins is None:
-        logging.error(f"Error during processing {chosen.from_user}\nposition : {pos}, score : {score}, wins : {wins}")
-        try:
-            await bot.edit_message_text(text=f"Я что-то сломал в боте :(", inline_message_id=chosen.inline_message_id, reply_markup=reply)
-        except Exception as e:
-            logging.error(f"An error occured : {e}")
-        return
+        logging.error(f"Error during processing {user}\nposition : {pos}, score : {score}, wins : {wins}")
+        return (f"Я что-то сломал в боте :(")
         
 
     text += f"\n\nМой лучший результат : {str(score)}%\nМои победы : {wins}"
@@ -374,10 +360,10 @@ async def result(chosen: ChosenInlineResult):
         text += f"\nМоё место: {str(pos)}"
 
     try:
-        await bot.edit_message_text(text=text, inline_message_id=chosen.inline_message_id, reply_markup=reply)
+        return text
     except Exception as e:
         logging.error(f"An error occured : {e}")
-
+        return (f"Я что-то сломал в боте :(")
 
 @dp.inline_query()
 async def inline_echo(inline_query: InlineQuery):
@@ -442,7 +428,7 @@ async def inline_echo(inline_query: InlineQuery):
     article = InlineQueryResultArticle(id=inline_query.id,
                                        title="Насколько я пастер?",
                                        reply_markup=reply,
-                                        input_message_content=InputTextMessageContent(parse_mode="HTML", message_text="Генерируем хуёвые проценты"))
+                                        input_message_content=InputTextMessageContent(parse_mode="HTML", message_text=generate_result(inline_query.from_user)))
 
     await inline_query.answer(results=[article], cache_time=0, button=leaderboard_start, is_personal=True)
 
